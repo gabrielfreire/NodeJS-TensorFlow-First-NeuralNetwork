@@ -22,13 +22,14 @@ var train = (dData, callback) => {
     var py = spawn('python', ['gradient_descent_nn.py']);
     var dataString = '';
 
+    console.log('Training...');
+
     py.stdout.on('data', (_data) => {
         dataString += _data.toString();
-        console.log(_data.toString());
     });
 
     py.stdout.on('end', () => {
-        console.log('Sum of numbers =', dataString);
+        console.log(dataString);
 
         if (callback) {
             callback();
@@ -48,13 +49,15 @@ var predict = () => {
     var predictionParsed;
     var pyModel = spawn('python', ['load_model.py']);
 
+    console.log('Done.');
+    console.log('Making prediction...');
+
     pyModel.stdout.on('data', (_data) => {
         prediction += _data.toString();
     })
 
     pyModel.stdout.on('end', () => {
         console.log('Prediction: ', prediction);
-        console.log(JSON.parse(prediction));
     });
 
     pyModel.stdin.write(JSON.stringify(data));

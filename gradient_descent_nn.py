@@ -7,37 +7,43 @@ n_input = 2
 n_hidden = 10
 n_output = 1
 
-learning_rate = 0.1
+learning_rate = 0.01
 epochs = 10000
 
 # create placeholders for input and output of type float32 (all the variables must be of the same type)
-X = tf.placeholder(tf.float32, name="X")
-Y = tf.placeholder(tf.float32, name="Y")
+with tf.variable_scope('input'):
+    X = tf.placeholder(tf.float32, name="X")
 
 # create the Variables of type float32 and give them names
-W1 = tf.Variable(tf.random_uniform([n_input, n_hidden], -1.0, 1.0), dtype=tf.float32, name="W1")
-W2 = tf.Variable(tf.random_uniform([n_hidden, n_output], -1.0, 1.0), dtype=tf.float32, name="W2")
-b1 = tf.Variable(tf.zeros([n_hidden]), dtype=tf.float32, name="Bias1")
-b2 = tf.Variable(tf.zeros([n_output]), dtype=tf.float32, name="Bias2")
-L2 = tf.sigmoid(tf.matmul(X,W1) + b1)
-global_step_t = tf.Variable(0, name="global_step", trainable=False)
+with tf.variable_scope('input_layer'):
+    W1 = tf.Variable(tf.random_uniform([n_input, n_hidden], -1.0, 1.0), dtype=tf.float32, name="W1")
+    b1 = tf.Variable(tf.zeros([n_hidden]), dtype=tf.float32, name="Bias1")
+    input_layer = tf.sigmoid(tf.matmul(X, W1) + b1)
+with tf.variable_scope('output_layer'):
+    W2 = tf.Variable(tf.random_uniform([n_hidden, n_output], -1.0, 1.0), dtype=tf.float32, name="W2")
+    b2 = tf.Variable(tf.zeros([n_output]), dtype=tf.float32, name="Bias2")
+    prediction_output = tf.sigmoid(tf.matmul(input_layer, W2) + b2)
 
-#hypoteses
-hy = tf.sigmoid(tf.matmul(L2,W2) + b2)
+with tf.variable_scope('cost'):
+    Y = tf.placeholder(tf.float32, name="Y")
+    global_step_t = tf.Variable(0, name="global_step", trainable=False)
+    # cross entropy cost function faster
+    cost = tf.reduce_mean(-Y * tf.log(prediction_output) - (1 - Y) * tf.log(1 - prediction_output), name="accuracy")
 
-# cross entropy cost function faster
-cost = tf.reduce_mean(-Y * tf.log(hy) - (1 - Y) * tf.log(1 - hy), name="accuracy")
-tf.summary.scalar('cost_f', cost)
 # Create a Gradient Descent optimizer
-optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost, global_step=global_step_t, name="train_op")
-summaries = tf.summary.merge_all()
+with tf.variable_scope('train'):
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost, global_step=global_step_t, name="train_op")
+
+with tf.variable_scope('logs'):
+    tf.summary.scalar('cost_f', cost)
+    summaries = tf.summary.merge_all()
+
 
 all_saver = tf.train.Saver()
 
 def read_in():
     lines = sys.stdin.readlines()
-    # print(lines)  
-    # print(json.loads(lines[0]))
+    # print(lines)
     return json.loads(lines[0])
 
 lines = read_in()
@@ -47,6 +53,19 @@ np_lines = np.array(lines)
 x_data = np.array(np_lines[0])
 y_data = np.array(np_lines[1])
 #create matrices
+# x = [
+#         [0, 0],
+#         [0, 1],
+#         [1, 0],
+#         [1, 1]
+#     ]
+# y = [
+#         [0],
+#         [0],
+#         [1],
+#         [1]
+#     ]
+
 x = []
 y = []
 def main():
@@ -55,7 +74,6 @@ def main():
         x.append(x_data[i])
         y.append(y_data[i])
 
-    # print(x)
     # create a Session an initialize
     init = tf.global_variables_initializer()
     with tf.Session() as session:
@@ -72,7 +90,7 @@ def main():
             }
             
             # train the model using GradientDescent optimizer
-            session.run(optimizer, feed_dict=feed_dict)
+            # session.run(optimizer, feed_dict=feed_dict)
             # what values to store in the event file
             to_compute = [optimizer, cost, global_step_t, summaries]
             # save/unpack those values in another array that looks exactly the same 
@@ -87,12 +105,12 @@ def main():
                 print("Model saved in file: %s" % save_path)
 
         # calculate the error
-        correct = tf.equal(tf.floor(hy + 0.5), Y)
+        correct = tf.equal(tf.floor(prediction_output + 0.5), Y)
         # use the correct to calculate the accuracy
         accuracy = tf.reduce_mean(tf.cast(correct, "float"))
 
         # print the prediction
-        print(session.run([hy], feed_dict=feed_dict))
+        print(session.run([prediction_output], feed_dict=feed_dict))
         # print the accuracy
         print("Accuracy: ", accuracy.eval(feed_dict) * 100, "%")
 

@@ -16,16 +16,25 @@ n_input = 2
 n_hidden = 10
 n_output = 1
 
-W1 = tf.Variable(tf.random_uniform([n_input, n_hidden], -1.0, 1.0), dtype=tf.float32, name="W1")
-W2 = tf.Variable(tf.random_uniform([n_hidden, n_output], -1.0, 1.0), dtype=tf.float32, name="W2")
-b1 = tf.Variable(tf.zeros([n_hidden]), dtype=tf.float32, name="Bias1")
-b2 = tf.Variable(tf.zeros([n_output]), dtype=tf.float32, name="Bias2")
-X = tf.placeholder(tf.float32, name="X")
-Y = tf.placeholder(tf.float32,name="Y")
+# create placeholders for input and output of type float32 (all the variables must be of the same type)
+with tf.variable_scope('input'):
+    X = tf.placeholder(tf.float32, name="X")
 
-L2 = tf.sigmoid(tf.matmul(X,W1) + b1)
-# prediction hypoteses
-hy = tf.sigmoid(tf.matmul(L2,W2) + b2)
+# create the Variables of type float32 and give them names
+with tf.variable_scope('input_layer'):
+    W1 = tf.Variable(tf.random_uniform([n_input, n_hidden], -1.0, 1.0), dtype=tf.float32, name="W1")
+    b1 = tf.Variable(tf.zeros([n_hidden]), dtype=tf.float32, name="Bias1")
+    input_layer = tf.sigmoid(tf.matmul(X,W1) + b1)
+with tf.variable_scope('output_layer'):
+    W2 = tf.Variable(tf.random_uniform([n_hidden, n_output], -1.0, 1.0), dtype=tf.float32, name="W2")
+    b2 = tf.Variable(tf.zeros([n_output]), dtype=tf.float32, name="Bias2")
+    prediction_output = tf.sigmoid(tf.matmul(input_layer, W2) + b2)
+
+with tf.variable_scope('cost'):
+    Y = tf.placeholder(tf.float32, name="Y")
+    global_step_t = tf.Variable(0, name="global_step", trainable=False)
+    # cross entropy cost function faster
+    cost = tf.reduce_mean(-Y * tf.log(prediction_output) - (1 - Y) * tf.log(1 - prediction_output), name="accuracy")
 
 def main():
     #create matrices
@@ -44,10 +53,11 @@ def main():
         # We restore the saved trained model's weights
         saver.restore(sess, 'tmp/model.ckpt-9000')
         # run the NN calculating the hypoteses passing an Test Input
-        y_out = sess.run([hy], feed_dict={X: x})
+        y_out = sess.run([prediction_output], feed_dict={X: x})
         #print the output
         to_nodejs = json.dumps(np.array(y_out[0]).tolist())
-        print(to_nodejs)
+        sys.stdout.write(to_nodejs)
+        sys.stdout.flush()
         
 if __name__ == '__main__':
     main()
